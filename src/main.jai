@@ -180,15 +180,20 @@ draw_frame :: ( window: Window_Type, dt: float ) {
 
     Simp.immediate_flush();
 
-    y -= font.default_line_spacing; // because y is the bottom-left-corner
-    for file_lines {
-      Simp.draw_text( font, xx x, xx y, it,
-                      base_theme.text_color );
-      y -= font.default_line_spacing;
-      if y < 0 {
-        break;
+    // Set the scissor to avoid drawing over the borders...
+    {
+      GR.push_scissor( r );
+      y -= font.default_line_spacing; // because y is the bottom-left-corner
+      for file_lines {
+        Simp.draw_text( font, xx x, xx y, it,
+                        base_theme.text_color );
+        y -= font.default_line_spacing;
+        if y < 0 {
+          break;
+        }
       }
     }
+    GR.pop_scissor();
   }
 }
 
