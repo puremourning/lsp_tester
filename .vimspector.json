@@ -5,7 +5,7 @@
       "adapter": "CodeLLDB",
       "variables": {
         "_buildit": {
-          "shell": [ "jai", "build.jai" ]
+          "shell": [ "jai", "build.jai", "-import_dir", "modules" ]
         }
       },
       "configuration": {

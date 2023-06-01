@@ -2,6 +2,13 @@ FRAME_TICK := 1.0/30.0; // update at around 30fps.
 VER_MAJOR  := 1;
 VER_MINOR  := 0;
 
+Options :: struct {
+  runtime_dir := ".";           @"?Runtime directory of this application";
+  data_dir    := "data";        @"?Directory under runtime_dir";
+  log_level   := "NORMAL";      @"?Levels: NORMAL, VERBOSE, VERY_VERBOSE";
+}
+options: Options;
+
 main :: () {
   #if OS == .WINDOWS {
     Windows :: #import "Windows";
@@ -25,27 +32,19 @@ main :: () {
   }
   log( .VERBOSE, "normal LSP Tester v%.%", VER_MAJOR, VER_MINOR );
 
-  window := create_window( window_width, window_height, "LSP Tester" );
-
-  {
-    x, y, w, h := get_dimensions(window, false);
-    window_width = w;
-    window_height = h;
-  }
-
-  Simp.set_render_target( window );
   set_cwd();
   init_time();
-  init_fonts();
-  ui_init();
+  window := init_ui();
+
+  file_data := read_entire_file( "data/test.jaiw" );
+  file_lines = String.split( file_data, "\n" );
 
   quit := false;
-  last_time: float64;
 
   while !quit {
     reset_temporary_storage();
 
-    current_time := get_time();
+    current_time = get_time();
     current_dt : float = cast(float)(current_time - last_time);
     if current_dt > FRAME_TICK current_dt = FRAME_TICK;
 
@@ -62,25 +61,22 @@ main :: () {
     last_time = get_time();
 
     for Input.get_window_resizes() {
-      Simp.update_window(it.window);
       if it.window == window {
-        should_reinit := ( it.width != window_width ) ||
-                         ( it.height != window_height );
-
-        window_width  = it.width;
-        window_height = it.height;
-
-        if should_reinit init_fonts();
+        handle_window_resize( window, it.width, it.height );
       }
     }
 
     Input.update_window_events();
     for Input.events_this_frame {
+      GR.getrect_handle_event( it );
+
       if #complete it.type == {
         case .UNINITIALIZED;
           // ignore
         case .KEYBOARD;
-          if it.key_pressed && it.key_code == .ESCAPE quit = true;
+          if it.key_pressed && it.key_code == .ESCAPE {
+            GR.active_widget_deactivate_all();
+          }
         case .TEXT_INPUT;
         case .WINDOW;
         case .MOUSE_WHEEL;
@@ -89,7 +85,7 @@ main :: () {
       }
     }
 
-    draw_frame( current_dt );
+    draw_frame( window, current_dt );
     Simp.swap_buffers( window );
   }
 
@@ -97,43 +93,119 @@ main :: () {
 
 #scope_file;
 
-Options :: struct {
-  runtime_dir := ".";           @"?Runtime directory of this application";
-  data_dir    := "data";        @"?Directory under runtime_dir";
-  log_level   := "NORMAL";      @"?Levels: NORMAL, VERBOSE, VERY_VERBOSE";
-}
-options: Options;
+init_ui :: () -> Window_Type {
+  window := create_window( window_width, window_height, "LSP Tester" );
 
-draw_frame :: ( dt: float ) {
+  {
+    x, y, w, h := get_dimensions(window, false);
+    window_width = w;
+    window_height = h;
+  }
+
+  Simp.set_render_target( window );
+  init_fonts();
+
+  GR.ui_init();
+  return window;
+}
+
+handle_window_resize :: ( window: Window_Type, width: s32, height: s32 ) {
+  Simp.update_window(window);
+  should_reinit := ( width != window_width ) || ( height != window_height );
+
+  window_width  = width;
+  window_height = height;
+
+  if should_reinit init_fonts();
+}
+
+file_lines: []string;
+
+draw_frame :: ( window: Window_Type, dt: float ) {
   Simp.clear_render_target( .7, .7, .7, 1 );
 
-  font := fonts[ Font_Style.NORMAL ];
-  text_width := Simp.prepare_text( font, "Hello, Sailor!" );
+  GR.ui_per_frame_update(window,
+                         xx window_width,
+                         xx window_height,
+                         current_time );
 
-  text_x := ( window_width - text_width ) / 2.0;
-  text_y := window_height * 0.9 - font.character_height / 2.0;
-  Simp.draw_prepared_text( font, xx text_x, xx text_y );
+  base_theme := GR.default_theme_procs[ GR.Default_Themes.Nimbus ]();
+
+  // 'k' is some resolution-adjusting unit of distance. Currently 1/10 of the
+  // screen height. (copied from GetRect example; perhaps we can adjust this)
+  k := window_height * .1;
+  // {
+  //   theme := base_theme.button_theme;
+  //   theme.font = fonts[ Font_Style.NORMAL ];
+  //   if GR.button( GR.get_rect( k, k, k * 3, k / 2.0 ), "Click Me", *theme ) {
+  //     Simp.draw_text( fonts[ Font_Style.MONO ],
+  //                     xx (3*k),
+  //                     xx (3*k),
+  //                     "Clicked!" );
+  //   }
+  // }
+
+  // draw the file contents in a box in the middle of the screen
+  {
+    font := fonts[ Font_Style.MONO ];
+    max_width := Simp.prepare_text( font, ONE_LINE );
+
+    border := k*0.1;
+    frame_width := border * 0.1;
+
+    y := window_height - border;
+    x := (window_width - max_width) / 2.0;
+
+    // put a box around it.
+    wrap_x := x - frame_width;
+    wrap_y := border - frame_width;
+    wrap_width := max_width + 2*frame_width;
+    wrap_height := window_height - 2*border + 2*frame_width;
+
+    Simp.set_shader_for_color( true );
+
+    r := GR.get_rect( wrap_x, wrap_y, wrap_width, wrap_height );
+    p0,p1,p2,p3 := GR.get_quad( r );
+    Simp.immediate_quad( p0, p1, p2, p3,
+                         base_theme.background_color );
+
+    r = GR.get_rect( wrap_x + frame_width,
+                     wrap_y + frame_width,
+                     xx max_width,
+                     xx window_height - 2*border );
+
+    p0,p1,p2,p3 = GR.get_quad( r );
+    Simp.immediate_quad( p0, p1, p2, p3,
+                         base_theme.background_color_bright );
+
+    Simp.immediate_flush();
+
+    y -= font.default_line_spacing; // because y is the bottom-left-corner
+    for file_lines {
+      Simp.draw_text( font, xx x, xx y, it,
+                      base_theme.text_color );
+      y -= font.default_line_spacing;
+      if y < 0 {
+        break;
+      }
+    }
+  }
 }
+
+#scope_file
+
+ONE_LINE :: "................................................................................";
 
 Font_Style :: enum {
   NORMAL;
   MONO;
 };
 
-set_cwd :: () {
-  if options.runtime_dir && set_working_directory( options.runtime_dir ) {
-    return;
-  }
-
-  System :: #import "System";
-  set_working_directory(System.get_path_of_running_executable());
-}
-
 init_fonts :: () {
   // there seems to be no way to free Dynamic_Fonts. shrug.
   array_reset( *fonts );
 
-  pixel_height := window_height / 24;
+  pixel_height := window_height / 50;
 
   // Generate a call to load each font in Font_Style
   #insert #run -> string {
@@ -163,13 +235,26 @@ init_fonts :: () {
 fonts : [..]*Simp.Dynamic_Font;
 window_width := 1280;
 window_height := 720;
+last_time: float64;
+current_time: float64;
+
+set_cwd :: () {
+  if options.runtime_dir && set_working_directory( options.runtime_dir ) {
+    return;
+  }
+
+  System :: #import "System";
+  set_working_directory(System.get_path_of_running_executable());
+}
 
 #import "Window_Creation";
 #import "Basic";
-#import "GetRect";
+#import "File";
 #import "Command_Line";
 #import "Simple_Logger";
 
+String :: #import "String";
 Math:: #import "Math";
 Simp :: #import "Simp";
+GR :: #import "GetRect";
 Input :: #import "Input";
