@@ -1,2 +1,6 @@
 bin/
 .build/
+
+# Various files
+Session.vim
+.vimspector.session
