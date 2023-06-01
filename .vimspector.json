@@ -1,0 +1,23 @@
+{
+  "$schema": "https://puremourning.github.io/vimspector/schema/vimspector.schema.json",
+  "configurations": {
+    "Run": {
+      "adapter": "CodeLLDB",
+      "variables": {
+        "_buildit": {
+          "shell": [ "jai", "build.jai" ]
+        }
+      },
+      "configuration": {
+        "request": "launch",
+        "program": "${workspaceRoot}/bin/MACOS/X64/debug/lsp_tester",
+        // "args": [ "*${Arguments}" ],
+        "cwd": "${workspaceRoot}",
+        "expressions": "native",
+        "initCommands": [
+          "command script import $HOME/Development/jai/lldb-jai/jaitype.py"
+        ]
+      }
+    }
+  }
+}

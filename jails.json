@@ -1,0 +1,10 @@
+[
+  {
+    "entry": "/src/main.jai",
+    "modules": "/modules"
+  },
+  {
+    "entry": "/build.jai",
+    "modules": ""
+  }
+]
