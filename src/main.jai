@@ -146,6 +146,9 @@ draw_frame :: ( window: Window_Type, dt: float ) {
   // }
 
   // draw the file contents in a box in the middle of the screen
+  // TODO: Widgitize this, so that it's not dependent on
+  // window_height/window_width, rather that it is just given .. a rect.. and
+  // draws _within_ that rather than expands outside it for its border.
   {
     font := fonts[ Font_Style.MONO ];
     max_width := Simp.prepare_text( font, ONE_LINE );
@@ -183,6 +186,8 @@ draw_frame :: ( window: Window_Type, dt: float ) {
     // Set the scissor to avoid drawing over the borders...
     {
       GR.push_scissor( r );
+      defer GR.pop_scissor();
+
       y -= font.default_line_spacing; // because y is the bottom-left-corner
       for file_lines {
         Simp.draw_text( font, xx x, xx y, it,
@@ -193,7 +198,6 @@ draw_frame :: ( window: Window_Type, dt: float ) {
         }
       }
     }
-    GR.pop_scissor();
   }
 }
 
