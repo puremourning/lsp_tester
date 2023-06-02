@@ -72,7 +72,7 @@ main :: () {
 
       if #complete it.type == {
         case .UNINITIALIZED;
-          // ignore
+          // ignored.
         case .KEYBOARD;
           if it.key_pressed && it.key_code == .ESCAPE {
             GR.active_widget_deactivate_all();
@@ -87,6 +87,8 @@ main :: () {
 
     draw_frame( window, current_dt );
     Simp.swap_buffers( window );
+
+    memory_visualizer_per_frame_update();
   }
 
 }
@@ -216,8 +218,7 @@ init_fonts :: () {
 
   pixel_height := window_height / 50;
 
-  // Generate a call to load each font in Font_Style
-  #insert #run -> string {
+  #insert -> string {
     builder: String_Builder;
 
     load_one :: #string DONE
@@ -229,7 +230,7 @@ init_fonts :: () {
       }
       array_add( *fonts, font );
     }
-    DONE
+    DONE;
 
     defer reset( *builder );
     for em : type_info( Font_Style ).names {
@@ -257,7 +258,7 @@ set_cwd :: () {
 }
 
 #import "Window_Creation";
-#import "Basic";
+#import "Basic"()(MEMORY_DEBUGGER=true);
 #import "File";
 #import "Command_Line";
 #import "Simple_Logger";

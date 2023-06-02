@@ -1,7 +1,8 @@
 init_simple_logging :: ( level: string ) -> bool {
   log_level : Log_Level;
-  #insert #run -> string {
+  #insert -> string {
     builder: String_Builder;
+    defer reset(*builder);
 
     #if 0 {
       // Output of the following messy metaprogrogramming is something like:
@@ -13,15 +14,14 @@ init_simple_logging :: ( level: string ) -> bool {
     }
 
     append( *builder, "if level == {");
+    {
       do_one_element :: #string DONE
         case "%1"; log_level = .%1;
-      DONE
+      DONE;
 
       for em : type_info( Log_Level ).names {
         append( *builder, tprint( do_one_element, em ) );
       }
-
-      defer reset(*builder);
 
       otherwise_case :: #string DONE
         case;
@@ -29,13 +29,15 @@ init_simple_logging :: ( level: string ) -> bool {
                       level,
                       type_info( Log_Level ).names );
           return false;
-      DONE
+      DONE;
 
       append( *builder, otherwise_case );
+    }
     append( *builder, "}");
 
     return builder_to_string( *builder );
   };
+
   context.logger = logger;
   context.log_level = log_level;
   return true;
